@@ -79,15 +79,18 @@ ai_group_accounts__1__model="deepseek-chat"
 |  ai_group_min_messages   |  int  |   50   |                  单次总结允许读取的最小消息数            |
 |    ai_group_cooldown     |  int  |   0    |                  单个用户调用冷却时间(秒)                |
 | ai_group_render_image    | bool  |  True  |                  是否将总结渲染为图片发送                |
+| ai_group_require_command_prefix | bool | True | 是否仅匹配带 NoneBot 命令前缀的命令；关闭时两种都匹配 |
 |   ai_group_queue_size    |  int  |   10   |                  等待处理的任务队列容量                  |
 | ai_group_request_timeout |  int  |  300   |                  任务入队及处理总超时(秒)                |
 |    ai_group_workers      |  int  |   2    |                  同时处理任务的最大并发数                |
 
 ## 🕹️ 使用
 
-**总结 [消息数量] [特定内容?]** ：生成该群最近消息数量的总结或指定内容的总结，特定内容为可选项。
+`ai_group_require_command_prefix` 默认开启。开启时只响应 `/总结` 等带前缀命令；设为 `false` 时，同时响应 `/总结` 和 `总结`。
 
-**私聊机器人：/总结 [群号] [时间段]** ：总结指定群在最近一段时间内的消息，并将结果私聊返回。命令同时兼容不带前缀的写法。时间段支持 `m`（分钟）、`h`（小时）、`d`（天）以及小数，例如：
+**/总结 [消息数量] [特定内容?]** ：生成该群最近消息数量的总结或指定内容的总结，特定内容为可选项。
+
+**私聊机器人：/总结 [群号] [时间段]** ：总结指定群在最近一段时间内的消息，并将结果私聊返回。时间段支持 `m`（分钟）、`h`（小时）、`d`（天）以及小数，例如：
 
 ```text
 /总结 855634423 10m

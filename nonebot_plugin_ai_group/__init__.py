@@ -42,10 +42,10 @@ __plugin_meta__ = PluginMetadata(
     name="AI 群聊总结",
     description="使用 AI 分析群聊记录，支持群内按条数和私聊按时间段总结。",
     usage=(
-        "1.群聊：总结 [消息数量] [内容]\n"
-        "2.私聊：总结 [群号] [时间段]，例如：总结 855634423 10m\n"
-        "3.总结定时 [时间] [最少消息数量]\n"
-        "4.总结定时取消"
+        "1.群聊：/总结 [消息数量] [内容]\n"
+        "2.私聊：/总结 [群号] [时间段]，例如：/总结 855634423 10m\n"
+        "3./总结定时 [时间] [最少消息数量]\n"
+        "4./总结定时取消"
     ),
     type="application",
     homepage="https://github.com/fyq258/nonebot_plugin_ai_group",
@@ -53,8 +53,23 @@ __plugin_meta__ = PluginMetadata(
     supported_adapters={"~onebot.v11"},
 )
 
+
+def resolve_command_prefixes(
+    command_start: set[str], require_prefix: bool
+) -> list[str]:
+    prefixes = sorted(prefix for prefix in command_start if prefix)
+    if not prefixes:
+        prefixes = ["/"]
+    if not require_prefix:
+        prefixes.append("")
+    return prefixes
+
+
 driver = get_driver()
-command_prefixes = [*sorted(set(driver.config.command_start) - {""}), ""]
+command_prefixes = resolve_command_prefixes(
+    set(driver.config.command_start),
+    config.ai_group_require_command_prefix,
+)
 
 summary = on_alconna(
     Alconna(
@@ -66,8 +81,8 @@ summary = on_alconna(
             compact=True,
             description="在群聊按消息数总结，或在私聊按群号和时间段总结",
             usage=(
-                "群聊：总结 [消息数量] [内容]\n"
-                "私聊：总结 [群号] [时间段]\n"
+                "群聊：/总结 [消息数量] [内容]\n"
+                "私聊：/总结 [群号] [时间段]\n"
                 "时间段支持 1m、1h、1.5h、1d"
             ),
         ),
@@ -88,7 +103,7 @@ summary_set = on_alconna(
         meta=CommandMeta(
             compact=True,
             description="定时生成消息数量的内容总结",
-            usage="总结定时 [时间] [最少消息数量]\n时间：0~23\n最少消息数量：默认为单次最大消息数",
+            usage="/总结定时 [时间] [最少消息数量]\n时间：0~23\n最少消息数量：默认为单次最大消息数",
         ),
     ),
     rule=validate_group_event,
@@ -103,7 +118,7 @@ summary_remove = on_alconna(
         "总结定时取消",
         meta=CommandMeta(
             description="取消本群的定时内容总结",
-            usage="总结定时取消",
+            usage="/总结定时取消",
         ),
     ),
     rule=validate_group_event,

@@ -17,6 +17,12 @@ ACCOUNT = {
 }
 
 
+def test_command_prefix_is_required_by_default() -> None:
+    config = Config(ai_group_accounts=[ACCOUNT])
+
+    assert config.ai_group_require_command_prefix is True
+
+
 @pytest.mark.parametrize(
     ("field", "value"),
     [
@@ -80,6 +86,7 @@ def test_nonebot_loads_new_configuration_from_dotenv(tmp_path: Path) -> None:
                 'AI_GROUP_ACCOUNTS__0__MODEL="test-model"',
                 "AI_GROUP_ACCOUNTS__0__TIMEOUT=45",
                 "AI_GROUP_RENDER_IMAGE=false",
+                "AI_GROUP_REQUIRE_COMMAND_PREFIX=false",
             ]
         ),
         encoding="utf-8",
@@ -96,6 +103,7 @@ from nonebot_plugin_ai_group.Config import config
 assert config.ai_group_accounts[0].name == "env-test"
 assert config.ai_group_accounts[0].timeout == 45
 assert config.ai_group_render_image is False
+assert config.ai_group_require_command_prefix is False
 """
 
     result = subprocess.run(

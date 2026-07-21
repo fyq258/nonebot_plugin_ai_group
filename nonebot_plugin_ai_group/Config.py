@@ -59,6 +59,10 @@ class Config(BaseModel):
     ai_group_render_image: bool = Field(
         True, description="是否将总结结果渲染为图片发送"
     )
+    ai_group_require_command_prefix: bool = Field(
+        True,
+        description="是否要求总结命令使用 NoneBot 配置的命令前缀",
+    )
 
     # --- 异步任务队列设置 ---
     ai_group_queue_size: int = Field(
