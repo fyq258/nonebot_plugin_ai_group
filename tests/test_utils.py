@@ -210,6 +210,26 @@ async def test_private_summary_is_sent_to_requester() -> None:
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("private", [True, False])
+async def test_summary_falls_back_to_text_when_image_rendering_fails(
+    monkeypatch: pytest.MonkeyPatch, private: bool
+) -> None:
+    bot = AsyncMock()
+    render = AsyncMock(side_effect=RuntimeError("render failed"))
+    monkeypatch.setattr(utils.config, "ai_group_render_image", True)
+    monkeypatch.setattr(utils, "generate_image", render, raising=False)
+
+    if private:
+        await utils.send_private_summary(bot, 456, " summary ")
+        bot.send_private_msg.assert_awaited_once_with(user_id=456, message="summary")
+    else:
+        await utils.send_summary(bot, 123, " summary ")
+        bot.send_group_msg.assert_awaited_once_with(group_id=123, message="summary")
+
+    render.assert_awaited_once_with(" summary ")
+
+
+@pytest.mark.asyncio
 async def test_group_access_requires_requester_membership() -> None:
     allowed_bot = AsyncMock()
     denied_bot = AsyncMock()

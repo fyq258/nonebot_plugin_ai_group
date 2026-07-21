@@ -84,6 +84,15 @@ ai_group_accounts__1__model="deepseek-chat"
 | ai_group_request_timeout |  int  |  300   |                  任务入队及处理总超时(秒)                |
 |    ai_group_workers      |  int  |   2    |                  同时处理任务的最大并发数                |
 
+启用图片输出时，需要为 `nonebot-plugin-htmlrender` 选择渲染后端：
+
+```env
+RENDER_BACKEND=playwright
+RENDER_PLAYWRIGHT__ENGINE=firefox
+```
+
+如果图片渲染失败，插件会自动降级为文本发送总结。
+
 ## 🕹️ 使用
 
 `ai_group_require_command_prefix` 默认开启。开启时只响应 `/总结` 等带前缀命令；设为 `false` 时，同时响应 `/总结` 和 `总结`。

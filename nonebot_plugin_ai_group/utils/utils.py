@@ -14,6 +14,7 @@ from nonebot.adapters.onebot.v11 import (
     MessageSegment,
     PrivateMessageEvent,
 )
+from nonebot.log import logger
 
 from ..Config import config
 from ..Store import Data, Store
@@ -211,24 +212,29 @@ async def messages_summary(
     return await queue_summary_request(messages, prompt)
 
 
-async def send_summary(bot: Bot, group_id: int, summary: str):
-    """发送总结"""
-    if config.ai_group_render_image:
+async def build_summary_message(summary: str) -> str | Message:
+    """按配置生成总结消息，图片渲染失败时降级为文本。"""
+    text = summary.strip()
+    if not config.ai_group_render_image:
+        return text
+
+    try:
         img = await generate_image(summary)
-        await bot.send_group_msg(
-            group_id=group_id, message=Message(MessageSegment.image(img))
-        )
-    else:
-        await bot.send_group_msg(group_id=group_id, message=summary.strip())
+        return Message(MessageSegment.image(img))
+    except Exception:
+        logger.exception("总结图片渲染失败，将改为发送文本。")
+        return text
+
+
+async def send_summary(bot: Bot, group_id: int, summary: str) -> None:
+    """发送总结"""
+    message = await build_summary_message(summary)
+    await bot.send_group_msg(group_id=group_id, message=message)
 
 
 async def send_private_summary(bot: Bot, user_id: int, summary: str) -> None:
     """向私聊请求者发送总结。"""
-    if config.ai_group_render_image:
-        img = await generate_image(summary)
-        message = Message(MessageSegment.image(img))
-    else:
-        message = summary.strip()
+    message = await build_summary_message(summary)
     await bot.send_private_msg(user_id=user_id, message=message)
 
 
