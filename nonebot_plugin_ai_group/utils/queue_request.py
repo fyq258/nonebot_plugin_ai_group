@@ -7,10 +7,10 @@ from ..Model import detect_model
 SummaryRequest = tuple[list[dict[str, str]], str, asyncio.Future[str]]
 
 summary_queue: asyncio.Queue[SummaryRequest] = asyncio.Queue(
-    maxsize=config.summary_max_queue_size
+    maxsize=config.ai_group_queue_size
 )
 _summary_worker_tasks: list[asyncio.Task[None]] = []
-_max_workers = config.summary_queue_workers
+_max_workers = config.ai_group_workers
 
 model = detect_model()
 
@@ -66,7 +66,7 @@ async def queue_summary_request(messages: list[dict[str, str]], prompt: str) -> 
     try:
         # 超时覆盖等待队列空位和模型处理的全部时间
         return await asyncio.wait_for(
-            enqueue_and_wait(), timeout=config.summary_queue_timeout
+            enqueue_and_wait(), timeout=config.ai_group_request_timeout
         )
     except asyncio.TimeoutError:
         if not future.done():

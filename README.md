@@ -33,11 +33,11 @@ pip install nonebot_plugin_ai_group
 
 每个账户（Gemini/OpenAI）都支持以下基础配置，至少填写一个账户，填多个时，当默认API错误时可根据优先级依次降级处理：
 
-- `nickname`: 账户的唯一别名，作为首先调用的模型（必填）
+- `name`: 账户的唯一名称（必填）
 - `api_key`: 该账户的 API Key（必填）
 - `model`: 该账户要使用的模型名称（必填）
 - `proxy`: 为该账户单独设置代理
-- `time_out`: 该账户的 API 请求超时时间(秒)，默认 60
+- `timeout`: 该账户的 API 请求超时时间(秒)，默认 60
 
 #### OpenAI 兼容格式特定配置
 
@@ -52,20 +52,20 @@ pip install nonebot_plugin_ai_group
 
 ```env
 # Gemini 配置
-ai_accounts__0__provider="gemini"
-ai_accounts__0__nickname="gemini-1"
-ai_accounts__0__api_key="your_gemini_api_key"
-ai_accounts__0__model="gemini-2.5-flash"
+ai_group_accounts__0__provider="gemini"
+ai_group_accounts__0__name="gemini-1"
+ai_group_accounts__0__api_key="your_gemini_api_key"
+ai_group_accounts__0__model="gemini-2.5-flash"
 
 # OpenAI 配置
-ai_accounts__1__provider="openai"
-ai_accounts__1__nickname="deepseek-1"
-ai_accounts__1__base_url="https://api.deepseek.com"
-ai_accounts__1__api_key="your_openai_api_key"
-ai_accounts__1__model="deepseek-chat"
+ai_group_accounts__1__provider="openai"
+ai_group_accounts__1__name="deepseek-1"
+ai_group_accounts__1__base_url="https://api.deepseek.com"
+ai_group_accounts__1__api_key="your_openai_api_key"
+ai_group_accounts__1__model="deepseek-chat"
 
 # 根据需要可添加更多账户配置
-# ai_accounts__3__...
+# ai_group_accounts__2__...
 ```
 
 ### 功能配置项
@@ -74,20 +74,20 @@ ai_accounts__1__model="deepseek-chat"
 
 |          配置项          | 类型  | 默认值 |                           说明                           |
 | :----------------------: | :---: | :----: | :------------------------------------------------------: |
-| default_account_nickname |  str  |  None  | 默认使用的账户别名。如果未设置，将使用列表中的第一个账户 |
-|    summary_max_length    |  int  |  1000  |                  总结内容的最大长度限制                  |
-|    summary_min_length    |  int  |   50   |                  总结内容的最小长度限制                  |
-|    summary_cool_down     |  int  |   0    |            单个用户调用总结功能的冷却时间(秒)            |
-|      summary_in_png      | bool  |  True  |               是否将总结结果以图片形式发送               |
-|  summary_max_queue_size  |  int  |   10   |              等待处理的总结任务队列最大数量              |
-|  summary_queue_timeout   |  int  |  300   |             任务入队及处理的总超时时间(秒)               |
-|  summary_queue_workers   |  int  |   2    |               同时处理总结任务的最大并发数               |
+| ai_group_default_account |  str  |  None  | 默认使用的账户名称；未设置时使用列表中的第一个账户       |
+|  ai_group_max_messages   |  int  |  1000  |                  单次总结允许读取的最大消息数            |
+|  ai_group_min_messages   |  int  |   50   |                  单次总结允许读取的最小消息数            |
+|    ai_group_cooldown     |  int  |   0    |                  单个用户调用冷却时间(秒)                |
+| ai_group_render_image    | bool  |  True  |                  是否将总结渲染为图片发送                |
+|   ai_group_queue_size    |  int  |   10   |                  等待处理的任务队列容量                  |
+| ai_group_request_timeout |  int  |  300   |                  任务入队及处理总超时(秒)                |
+|    ai_group_workers      |  int  |   2    |                  同时处理任务的最大并发数                |
 
 ## 🕹️ 使用
 
 **总结 [消息数量] [特定内容?]** ：生成该群最近消息数量的总结或指定内容的总结，特定内容为可选项。
 
-**总结定时 [时间] [最少消息数量?=summary_max_length]** ：每天在指定时间检查最近 24 小时的群消息；达到最少消息数量时生成总结。时间：0~23，最少消息数量默认为总结最大长度，每群独立计算，默认不启用。
+**总结定时 [时间] [最少消息数量?=ai_group_max_messages]** ：每天在指定时间检查最近 24 小时的群消息；达到最少消息数量时生成总结。时间：0~23，最少消息数量默认为单次总结最大消息数，每群独立计算，默认不启用。
 
 **总结定时取消** ：取消本群的定时内容总结。
 

@@ -8,8 +8,8 @@ from nonebot_plugin_localstore import get_plugin_data_file  # noqa: E402
 
 
 class Data(TypedDict):
-    time: int
-    least_message_count: int
+    hour: int
+    minimum_messages: int
 
 
 class Store:
@@ -27,7 +27,7 @@ class Store:
             return
         self.__initialized = True
 
-        self.store = get_plugin_data_file("summary_group.json")
+        self.store = get_plugin_data_file("ai_group.json")
         if not self.store.exists() or self.store.stat().st_size == 0:
             self.data = {}
             return

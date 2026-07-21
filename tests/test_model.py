@@ -5,11 +5,11 @@ from nonebot_plugin_ai_group.Model import OpenAI
 
 def test_openai_base_url_has_no_trailing_slash() -> None:
     model = OpenAI(
-        nickname="test",
+        account_name="test",
         openai_base_url=HttpUrl("https://example.com/v1/"),
         openai_api_key="test-key",
         summary_model="test-model",
-        time_out=60,
+        timeout=60,
         proxy=None,
     )
 

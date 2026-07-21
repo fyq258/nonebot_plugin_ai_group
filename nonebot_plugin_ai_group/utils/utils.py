@@ -22,7 +22,7 @@ def get_css_path() -> Path:
     return Path(__file__).parent.parent / "assert" / "github-markdown-dark.css"
 
 
-if config.summary_in_png:
+if config.ai_group_render_image:
     require("nonebot_plugin_htmlrender")
     from nonebot_plugin_htmlrender import md_to_pic  # type: ignore
 
@@ -39,16 +39,16 @@ def validate_group_event(event) -> bool:
 
 def validate_message_count(num: int) -> bool:
     """验证消息数量是否在合法范围内"""
-    return num >= config.summary_min_length and num <= config.summary_max_length
+    return config.ai_group_min_messages <= num <= config.ai_group_max_messages
 
 
 def validate_cool_down(user_id: int) -> bool | int:
     """验证是否冷却"""
-    if config.summary_cool_down > 0:
+    if config.ai_group_cooldown > 0:
         if (last_time := cool_down[user_id]) > datetime.now():
             return ceil((last_time - datetime.now()).total_seconds())
         cool_down[user_id] = datetime.now() + timedelta(
-            seconds=config.summary_cool_down
+            seconds=config.ai_group_cooldown
         )
     return False
 
@@ -147,7 +147,7 @@ async def messages_summary(
 
 async def send_summary(bot: Bot, group_id: int, summary: str):
     """发送总结"""
-    if config.summary_in_png:
+    if config.ai_group_render_image:
         img = await generate_image(summary)
         await bot.send_group_msg(
             group_id=group_id, message=Message(MessageSegment.image(img))
@@ -156,17 +156,17 @@ async def send_summary(bot: Bot, group_id: int, summary: str):
         await bot.send_group_msg(group_id=group_id, message=summary.strip())
 
 
-async def scheduler_send_summary(group_id: int, least_message_count: int):
+async def scheduler_send_summary(group_id: int, minimum_messages: int):
     """最近 24 小时消息数达到阈值时发送定时总结。"""
     bot = get_bot()
     messages = (
-        await bot.get_group_msg_history(group_id=group_id, count=least_message_count)
+        await bot.get_group_msg_history(group_id=group_id, count=minimum_messages)
     )["messages"]
 
     deadline = (datetime.now() - timedelta(hours=24)).timestamp()
     messages = [message for message in messages if message["time"] > deadline]
 
-    if len(messages) < least_message_count:
+    if len(messages) < minimum_messages:
         return
 
     messages = await process_message(messages, bot, group_id)  # type: ignore
@@ -179,7 +179,7 @@ async def scheduler_send_summary(group_id: int, least_message_count: int):
 
 
 def get_scheduler_job_id(group_id: int) -> str:
-    return f"summary_group_{group_id}"
+    return f"ai_group_{group_id}"
 
 
 def schedule_summary(group_id: int, data: Data) -> None:
@@ -187,8 +187,8 @@ def schedule_summary(group_id: int, data: Data) -> None:
     scheduler.add_job(
         scheduler_send_summary,
         "cron",
-        hour=data["time"],
-        args=(group_id, data["least_message_count"]),
+        hour=data["hour"],
+        args=(group_id, data["minimum_messages"]),
         id=get_scheduler_job_id(group_id),
         replace_existing=True,
     )

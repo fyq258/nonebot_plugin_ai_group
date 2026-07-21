@@ -31,7 +31,7 @@ async def test_timeout_includes_waiting_for_queue_space(
     occupied_future = loop.create_future()
     await queue_request.summary_queue.put(([], "occupied", occupied_future))
     monkeypatch.setattr(queue_request, "ensure_workers_running", do_not_start_workers)
-    monkeypatch.setattr(queue_request.config, "summary_queue_timeout", 0.01)
+    monkeypatch.setattr(queue_request.config, "ai_group_request_timeout", 0.01)
 
     result = await queue_request.queue_summary_request([], "prompt")
 
@@ -52,7 +52,7 @@ async def test_timed_out_request_does_not_stop_worker(
             return "summary"
 
     monkeypatch.setattr(queue_request, "model", SlowModel())
-    monkeypatch.setattr(queue_request.config, "summary_queue_timeout", 0.01)
+    monkeypatch.setattr(queue_request.config, "ai_group_request_timeout", 0.01)
 
     result = await queue_request.queue_summary_request([], "prompt")
     gate.set()

@@ -60,11 +60,11 @@ summary_set = on_alconna(
             "time",
             "re:(0?[0-9]|1[0-9]|2[0-3])",
         ],
-        Args["least_message_count", int, config.summary_max_length],
+        Args["minimum_messages", int, config.ai_group_max_messages],
         meta=CommandMeta(
             compact=True,
             description="定时生成消息数量的内容总结",
-            usage="总结定时 [时间] [最少消息数量]\n时间：0~23\n最少消息数量：默认为总结最大长度",
+            usage="总结定时 [时间] [最少消息数量]\n时间：0~23\n最少消息数量：默认为单次最大消息数",
         ),
     ),
     rule=validate_group_event,
@@ -147,7 +147,8 @@ async def _(
     # 消息数量检查
     if not validate_message_count(message_count_get):
         await summary_group.finish(
-            f"总结消息数量应在 {config.summary_min_length} 到 {config.summary_max_length} 之间。",
+            f"总结消息数量应在 {config.ai_group_min_messages} 到 "
+            f"{config.ai_group_max_messages} 之间。",
             at_sender=True,
         )
 
@@ -168,24 +169,24 @@ async def _(
 async def _(
     event: GroupMessageEvent,
     time: Match[str],
-    least_message_count: Match[int],
+    minimum_messages: Match[int],
 ):
     group_id = event.group_id
-    least_message_count_get = least_message_count.result
-    if not validate_message_count(least_message_count_get):
+    minimum_messages_get = minimum_messages.result
+    if not validate_message_count(minimum_messages_get):
         await summary_set.finish(
-            f"最低消息数量应在 {config.summary_min_length} 到 "
-            f"{config.summary_max_length} 之间。",
+            f"最低消息数量应在 {config.ai_group_min_messages} 到 "
+            f"{config.ai_group_max_messages} 之间。",
             at_sender=True,
         )
 
     store = Store()
-    data = Data(time=int(time.result), least_message_count=least_message_count_get)
+    data = Data(hour=int(time.result), minimum_messages=minimum_messages_get)
     store.set(group_id, data)
     schedule_summary(group_id, data)
     await summary_set.finish(
         f"已设置定时总结，将在每天 {time.result} 时检查最近 24 小时消息，"
-        f"达到 {least_message_count_get} 条时生成总结。",
+        f"达到 {minimum_messages_get} 条时生成总结。",
         at_sender=True,
     )
 

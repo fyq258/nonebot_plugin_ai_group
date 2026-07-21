@@ -1,10 +1,14 @@
 from datetime import datetime, timedelta
+import importlib
+from pathlib import Path
 from unittest.mock import AsyncMock
 
 import pytest
 
 from nonebot_plugin_ai_group.Store import Data
 from nonebot_plugin_ai_group.utils import utils
+
+store_module = importlib.import_module("nonebot_plugin_ai_group.Store")
 
 
 class FakeScheduler:
@@ -34,16 +38,34 @@ def test_schedule_summary_can_add_update_and_remove(
 ) -> None:
     fake_scheduler = FakeScheduler()
     monkeypatch.setattr(utils, "scheduler", fake_scheduler)
-    data = Data(time=8, least_message_count=50)
+    data = Data(hour=8, minimum_messages=50)
 
     utils.schedule_summary(123, data)
 
     job_id = utils.get_scheduler_job_id(123)
+    assert job_id == "ai_group_123"
     assert fake_scheduler.jobs[job_id][2]["hour"] == 8
     assert fake_scheduler.jobs[job_id][2]["args"] == (123, 50)
 
     utils.remove_summary_schedule(123)
     assert job_id not in fake_scheduler.jobs
+
+
+def test_store_uses_ai_group_data_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        store_module,
+        "get_plugin_data_file",
+        lambda filename: tmp_path / filename,
+    )
+    store_module.Store._instance = None
+
+    try:
+        store = store_module.Store()
+        assert store.store == tmp_path / "ai_group.json"
+    finally:
+        store_module.Store._instance = None
 
 
 @pytest.mark.asyncio
@@ -68,7 +90,7 @@ async def test_scheduler_requires_threshold_within_last_24_hours(
     monkeypatch.setattr(utils, "messages_summary", summarize)
     monkeypatch.setattr(utils, "send_summary", send)
 
-    await utils.scheduler_send_summary(group_id=123, least_message_count=3)
+    await utils.scheduler_send_summary(group_id=123, minimum_messages=3)
 
     summarize.assert_not_awaited()
     send.assert_not_awaited()
@@ -96,7 +118,7 @@ async def test_scheduler_keeps_last_real_message(
     monkeypatch.setattr(utils, "messages_summary", summarize)
     monkeypatch.setattr(utils, "send_summary", send)
 
-    await utils.scheduler_send_summary(group_id=123, least_message_count=3)
+    await utils.scheduler_send_summary(group_id=123, minimum_messages=3)
 
     processed_messages = summarize.await_args.args[0]
     assert processed_messages == [

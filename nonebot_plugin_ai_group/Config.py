@@ -3,6 +3,7 @@ from typing import Annotated, Any, Literal, Union
 from nonebot import get_plugin_config
 from pydantic import (
     BaseModel,
+    ConfigDict,
     Field,
     HttpUrl,
     field_validator,
@@ -13,11 +14,13 @@ from pydantic import (
 class BaseProviderConfig(BaseModel):
     """所有AI服务商账户共有的基础配置"""
 
-    nickname: str = Field(description="账户的唯一别名，用于在指令中指定账户")
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(description="账户的唯一名称")
     api_key: str = Field(description="该账户的 API Key")
     model: str = Field(description="该账户要使用的模型名称")
     proxy: str | None = Field(None, description="为该账户单独设置代理")
-    time_out: int = Field(60, gt=0, description="该账户的 API 请求超时时间(秒)")
+    timeout: int = Field(60, gt=0, description="该账户的 API 请求超时时间(秒)")
 
 
 class OpenAIConfig(BaseProviderConfig):
@@ -44,36 +47,40 @@ class Config(BaseModel):
     """插件主配置"""
 
     # --- 通用功能设置 (与具体账户无关) ---
-    summary_max_length: int = Field(1000, ge=1, description="总结内容的最大长度限制")
-    summary_min_length: int = Field(50, ge=1, description="总结内容的最小长度限制")
-    summary_cool_down: int = Field(
+    ai_group_max_messages: int = Field(
+        1000, ge=1, description="单次总结允许读取的最大消息数"
+    )
+    ai_group_min_messages: int = Field(
+        50, ge=1, description="单次总结允许读取的最小消息数"
+    )
+    ai_group_cooldown: int = Field(
         0, ge=0, description="单个用户调用总结功能的冷却时间(秒)"
     )
-    summary_in_png: bool = Field(True, description="是否将总结结果以图片形式发送")
+    ai_group_render_image: bool = Field(
+        True, description="是否将总结结果渲染为图片发送"
+    )
 
     # --- 异步任务队列设置 ---
-    summary_max_queue_size: int = Field(
+    ai_group_queue_size: int = Field(
         10, ge=1, description="等待处理的总结任务队列最大数量"
     )
-    summary_queue_timeout: int = Field(
+    ai_group_request_timeout: int = Field(
         300, gt=0, description="任务入队及处理的总超时时间(秒)"
     )
-    summary_queue_workers: int = Field(
-        2, ge=1, description="同时处理总结任务的最大并发数"
-    )
+    ai_group_workers: int = Field(2, ge=1, description="同时处理总结任务的最大并发数")
 
     # --- AI 账户列表 ---
-    ai_accounts: list[AIProviderConfig] = Field(
+    ai_group_accounts: list[AIProviderConfig] = Field(
         min_length=1,
         validate_default=True,  # 确保至少配置了一个账户
         description="AI服务商账户配置列表",
     )
     # --- 默认账户 ---
-    default_account_nickname: str | None = Field(
-        None, description="默认使用的账户别名。如果未设置，将使用列表中的第一个账户。"
+    ai_group_default_account: str | None = Field(
+        None, description="默认使用的账户名称。如果未设置，将使用列表中的第一个账户。"
     )
 
-    @field_validator("ai_accounts", mode="before")
+    @field_validator("ai_group_accounts", mode="before")
     @classmethod
     def transform_dict_to_list(cls, v: Any) -> list[AIProviderConfig]:
         """
@@ -88,24 +95,21 @@ class Config(BaseModel):
 
     @model_validator(mode="after")
     def check_accounts_and_default(self) -> "Config":
-        if self.summary_min_length > self.summary_max_length:
+        if self.ai_group_min_messages > self.ai_group_max_messages:
             raise ValueError(
-                "配置项 'summary_min_length' 不能大于 'summary_max_length'。"
+                "配置项 'ai_group_min_messages' 不能大于 'ai_group_max_messages'。"
             )
 
-        # 检查 nickname 是否唯一
-        nicknames = [acc.nickname for acc in self.ai_accounts]
-        if len(nicknames) != len(set(nicknames)):
-            raise ValueError("配置项 'ai_accounts' 中的 'nickname' 必须是唯一的。")
+        # 检查账户名称是否唯一
+        names = [account.name for account in self.ai_group_accounts]
+        if len(names) != len(set(names)):
+            raise ValueError("配置项 'ai_group_accounts' 中的 'name' 必须是唯一的。")
 
-        # 如果设置了 default_account_nickname，检查它是否存在
-        if (
-            self.default_account_nickname
-            and self.default_account_nickname not in nicknames
-        ):
+        # 如果设置了默认账户，检查它是否存在
+        if self.ai_group_default_account and self.ai_group_default_account not in names:
             raise ValueError(
-                f"设置的默认账户别名 '{self.default_account_nickname}' "
-                f"在 'ai_accounts' 列表中不存在。"
+                f"设置的默认账户 '{self.ai_group_default_account}' "
+                f"在 'ai_group_accounts' 列表中不存在。"
             )
         return self
 
