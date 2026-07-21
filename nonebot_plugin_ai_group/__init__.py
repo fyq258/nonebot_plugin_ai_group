@@ -48,7 +48,7 @@ __plugin_meta__ = PluginMetadata(
         "4.总结定时取消"
     ),
     type="application",
-    homepage="https://github.com/StillMisty/nonebot_plugin_ai_group",
+    homepage="https://github.com/fyq258/nonebot_plugin_ai_group",
     config=Config,
     supported_adapters={"~onebot.v11"},
 )

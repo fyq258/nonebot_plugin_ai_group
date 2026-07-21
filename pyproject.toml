@@ -2,6 +2,7 @@
 name = "nonebot_plugin_ai_group"
 version = "1.1.0"
 authors = [{ name = "StillMisty", email = "1772797842@qq.com" }]
+maintainers = [{ name = "fyq258", email = "3297287623@qq.com" }]
 description = "基于 Nonebot2，使用 AI 分析群聊记录，生成讨论内容的总结。"
 readme = "README.md"
 license = "Apache-2.0"
@@ -42,4 +43,6 @@ dev = [
 "nonebot_plugin_ai_group" = ["assert/*"]
 
 [project.urls]
-Homepage = "https://github.com/StillMisty/nonebot_plugin_ai_group"
+Homepage = "https://github.com/fyq258/nonebot_plugin_ai_group"
+Repository = "https://github.com/fyq258/nonebot_plugin_ai_group"
+Issues = "https://github.com/fyq258/nonebot_plugin_ai_group/issues"
