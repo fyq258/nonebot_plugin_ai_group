@@ -4,8 +4,12 @@ import asyncio
 from ..Config import config
 from ..Model import detect_model
 
-summary_queue = asyncio.Queue(maxsize=config.summary_max_queue_size)
-_summary_worker_tasks = []
+SummaryRequest = tuple[list[dict[str, str]], str, asyncio.Future[str]]
+
+summary_queue: asyncio.Queue[SummaryRequest] = asyncio.Queue(
+    maxsize=config.summary_max_queue_size
+)
+_summary_worker_tasks: list[asyncio.Task[None]] = []
 _max_workers = config.summary_queue_workers
 
 model = detect_model()
@@ -17,13 +21,18 @@ async def _process_summary_worker():
         # 从队列获取任务
         messages, prompt, future = await summary_queue.get()
         try:
+            if future.cancelled():
+                continue
+
             # 调用实际的总结方法
             result = await model.summary_history(messages, prompt)
             # 设置结果
-            future.set_result(result)
+            if not future.done():
+                future.set_result(result)
         except Exception as e:
             # 如果发生错误，将异常传播回调用方
-            future.set_exception(e)
+            if not future.done():
+                future.set_exception(e)
         finally:
             # 标记任务完成
             summary_queue.task_done()
@@ -48,15 +57,20 @@ async def queue_summary_request(messages: list[dict[str, str]], prompt: str) -> 
     await ensure_workers_running()
 
     # 创建Future对象以获取结果
-    future = asyncio.Future()
+    future = asyncio.get_running_loop().create_future()
 
-    # 将请求加入队列
-    await summary_queue.put((messages, prompt, future))
+    async def enqueue_and_wait() -> str:
+        await summary_queue.put((messages, prompt, future))
+        return await future
 
     try:
-        # 等待结果，设置超时时间
-        return await asyncio.wait_for(future, timeout=config.summary_queue_timeout)
+        # 超时覆盖等待队列空位和模型处理的全部时间
+        return await asyncio.wait_for(
+            enqueue_and_wait(), timeout=config.summary_queue_timeout
+        )
     except asyncio.TimeoutError:
+        if not future.done():
+            future.cancel()
         return "总结请求处理超时,请稍后再试。"
     except Exception as e:
         return f"总结请求处理失败, {e}"

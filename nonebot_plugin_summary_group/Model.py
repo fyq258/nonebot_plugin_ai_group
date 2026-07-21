@@ -63,7 +63,7 @@ class OpenAI(Model):
         proxy: str | None,
     ):
         self.nickname = nickname
-        self.openai_base_url = openai_base_url
+        self.openai_base_url = str(openai_base_url).rstrip("/")
         self.openai_api_key = openai_api_key
         self.summary_model = summary_model
         self.proxy = proxy

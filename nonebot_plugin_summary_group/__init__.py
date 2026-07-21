@@ -9,6 +9,8 @@ from .Store import Data, Store
 from .utils.utils import (
     get_group_msg_history,
     messages_summary,
+    remove_summary_schedule,
+    schedule_summary,
     send_summary,
     set_scheduler,
     validate_cool_down,
@@ -47,6 +49,7 @@ summary_group = on_alconna(
             usage="总结 [消息数量] [内容]\n内容为可选，支持@用户",
         ),
     ),
+    rule=validate_group_event,
     priority=5,
     block=True,
 )
@@ -168,11 +171,21 @@ async def _(
     least_message_count: Match[int],
 ):
     group_id = event.group_id
+    least_message_count_get = least_message_count.result
+    if not validate_message_count(least_message_count_get):
+        await summary_set.finish(
+            f"最低消息数量应在 {config.summary_min_length} 到 "
+            f"{config.summary_max_length} 之间。",
+            at_sender=True,
+        )
+
     store = Store()
-    data = Data(time=int(time.result), least_message_count=least_message_count.result)
+    data = Data(time=int(time.result), least_message_count=least_message_count_get)
     store.set(group_id, data)
+    schedule_summary(group_id, data)
     await summary_set.finish(
-        f"已设置定时总结，将在{time.result}时当群消息相较昨天同时多于{least_message_count.result}条消息时生成内容总结。",
+        f"已设置定时总结，将在每天 {time.result} 时检查最近 24 小时消息，"
+        f"达到 {least_message_count_get} 条时生成总结。",
         at_sender=True,
     )
 
@@ -182,4 +195,5 @@ async def _(event: GroupMessageEvent):
     group_id = event.group_id
     store = Store()
     store.remove(group_id)
+    remove_summary_schedule(group_id)
     await summary_remove.finish("已取消本群定时总结。", at_sender=True)

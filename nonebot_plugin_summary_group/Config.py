@@ -17,7 +17,7 @@ class BaseProviderConfig(BaseModel):
     api_key: str = Field(description="该账户的 API Key")
     model: str = Field(description="该账户要使用的模型名称")
     proxy: str | None = Field(None, description="为该账户单独设置代理")
-    time_out: int = Field(60, description="该账户的 API 请求超时时间(秒)")
+    time_out: int = Field(60, gt=0, description="该账户的 API 请求超时时间(秒)")
 
 
 class OpenAIConfig(BaseProviderConfig):
@@ -44,19 +44,23 @@ class Config(BaseModel):
     """插件主配置"""
 
     # --- 通用功能设置 (与具体账户无关) ---
-    summary_max_length: int = Field(1000, description="总结内容的最大长度限制")
-    summary_min_length: int = Field(50, description="总结内容的最小长度限制")
-    summary_cool_down: int = Field(0, description="单个用户调用总结功能的冷却时间(秒)")
+    summary_max_length: int = Field(1000, ge=1, description="总结内容的最大长度限制")
+    summary_min_length: int = Field(50, ge=1, description="总结内容的最小长度限制")
+    summary_cool_down: int = Field(
+        0, ge=0, description="单个用户调用总结功能的冷却时间(秒)"
+    )
     summary_in_png: bool = Field(True, description="是否将总结结果以图片形式发送")
 
     # --- 异步任务队列设置 ---
     summary_max_queue_size: int = Field(
-        10, description="等待处理的总结任务队列最大数量"
+        10, ge=1, description="等待处理的总结任务队列最大数量"
     )
     summary_queue_timeout: int = Field(
-        300, description="任务在队列中等待处理的超时时间(秒)"
+        300, gt=0, description="任务入队及处理的总超时时间(秒)"
     )
-    summary_queue_workers: int = Field(2, description="同时处理总结任务的最大并发数")
+    summary_queue_workers: int = Field(
+        2, ge=1, description="同时处理总结任务的最大并发数"
+    )
 
     # --- AI 账户列表 ---
     ai_accounts: list[AIProviderConfig] = Field(
@@ -84,6 +88,11 @@ class Config(BaseModel):
 
     @model_validator(mode="after")
     def check_accounts_and_default(self) -> "Config":
+        if self.summary_min_length > self.summary_max_length:
+            raise ValueError(
+                "配置项 'summary_min_length' 不能大于 'summary_max_length'。"
+            )
+
         # 检查 nickname 是否唯一
         nicknames = [acc.nickname for acc in self.ai_accounts]
         if len(nicknames) != len(set(nicknames)):

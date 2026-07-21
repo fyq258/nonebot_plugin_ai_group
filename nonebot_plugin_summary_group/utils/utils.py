@@ -1,7 +1,6 @@
 import asyncio
 from collections import defaultdict
 from datetime import datetime, timedelta
-from itertools import dropwhile
 from math import ceil
 from pathlib import Path
 
@@ -9,7 +8,7 @@ from nonebot import get_bot, require
 from nonebot.adapters.onebot.v11 import Bot, GroupMessageEvent, Message, MessageSegment
 
 from ..Config import config
-from ..Store import Store
+from ..Store import Data, Store
 from .queue_request import (
     queue_summary_request,
 )
@@ -54,7 +53,12 @@ def validate_cool_down(user_id: int) -> bool | int:
     return False
 
 
-async def process_message(messages, bot: Bot, group_id: int) -> list[dict[str, str]]:
+async def process_message(
+    messages,
+    bot: Bot,
+    group_id: int,
+    remove_last_message: bool = False,
+) -> list[dict[str, str]]:
     # 预先收集所有被@的QQ号，同时过滤掉非法消息
     qq_set: set[str] = set()
     for msg in messages:
@@ -88,7 +92,7 @@ async def process_message(messages, bot: Bot, group_id: int) -> list[dict[str, s
             sender: str = message["sender"]["card"] or message["sender"]["nickname"]
             result.append({sender: "".join(text_segments)})
 
-    if result:  # 安全检查
+    if remove_last_message and result:
         result.pop()  # 去除请求总结的命令
 
     return result
@@ -126,7 +130,7 @@ async def get_group_msg_history(
         "messages"
     ]
 
-    return await process_message(messages, bot, group_id)
+    return await process_message(messages, bot, group_id, remove_last_message=True)
 
 
 async def messages_summary(
@@ -153,41 +157,52 @@ async def send_summary(bot: Bot, group_id: int, summary: str):
 
 
 async def scheduler_send_summary(group_id: int, least_message_count: int):
-    """定时发送总结，总结消息范围为所设置总结条数中最近24小时内的消息，若消息数量小于总结最小值则不总结"""
+    """最近 24 小时消息数达到阈值时发送定时总结。"""
     bot = get_bot()
     messages = (
         await bot.get_group_msg_history(group_id=group_id, count=least_message_count)
     )["messages"]
 
-    if len(messages) < config.summary_min_length:
-        return
-
     deadline = (datetime.now() - timedelta(hours=24)).timestamp()
+    messages = [message for message in messages if message["time"] > deadline]
 
-    # 如果最小总结条数的消息时间在24小时前，则不进行总结
-    if messages[-config.summary_min_length]["time"] <= deadline:
+    if len(messages) < least_message_count:
         return
-
-    # 如果最大总结条数的消息时间在24小时前，则截取其中24小时内的消息
-    if messages[0]["time"] <= deadline:
-        messages = list(dropwhile(lambda msg: msg["time"] <= deadline, messages))
 
     messages = await process_message(messages, bot, group_id)  # type: ignore
+    if not messages:
+        return
 
     summary = await messages_summary(messages)
 
     await send_summary(bot, group_id, summary)  # type: ignore
 
 
-def set_scheduler():
-    """设置定时任务"""
+def get_scheduler_job_id(group_id: int) -> str:
+    return f"summary_group_{group_id}"
+
+
+def schedule_summary(group_id: int, data: Data) -> None:
+    """新增或更新一个群的定时总结任务。"""
+    scheduler.add_job(
+        scheduler_send_summary,
+        "cron",
+        hour=data["time"],
+        args=(group_id, data["least_message_count"]),
+        id=get_scheduler_job_id(group_id),
+        replace_existing=True,
+    )
+
+
+def remove_summary_schedule(group_id: int) -> None:
+    """移除一个群的定时总结任务。"""
+    job_id = get_scheduler_job_id(group_id)
+    if scheduler.get_job(job_id) is not None:
+        scheduler.remove_job(job_id)
+
+
+def set_scheduler() -> None:
+    """从持久化配置恢复全部定时任务。"""
     store = Store()
     for group_id, data in store.data.items():
-        scheduler.add_job(
-            scheduler_send_summary,
-            "cron",
-            hour=data["time"],
-            args=(int(group_id), data["least_message_count"]),
-            id=f"summary_group_{group_id}",
-            replace_existing=True,
-        )
+        schedule_summary(int(group_id), data)
