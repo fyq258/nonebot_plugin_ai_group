@@ -1,5 +1,5 @@
 [project]
-name = "nonebot-plugin-summary-group"
+name = "nonebot_plugin_ai_group"
 version = "1.0.1"
 authors = [{ name = "StillMisty", email = "1772797842@qq.com" }]
 description = "基于 Nonebot2，使用 AI 分析群聊记录，生成讨论内容的总结。"
@@ -39,7 +39,7 @@ dev = [
 ]
 
 [tool.setuptools.package-data]
-"nonebot_plugin_summary_group" = ["assert/*"]
+"nonebot_plugin_ai_group" = ["assert/*"]
 
 [project.urls]
-Homepage = "https://github.com/StillMisty/nonebot_plugin_summary_group"
+Homepage = "https://github.com/StillMisty/nonebot_plugin_ai_group"

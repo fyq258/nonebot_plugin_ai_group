@@ -3,8 +3,8 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from nonebot_plugin_summary_group.Store import Data
-from nonebot_plugin_summary_group.utils import utils
+from nonebot_plugin_ai_group.Store import Data
+from nonebot_plugin_ai_group.utils import utils
 
 
 class FakeScheduler:

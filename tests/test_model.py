@@ -1,6 +1,6 @@
 from pydantic import HttpUrl
 
-from nonebot_plugin_summary_group.Model import OpenAI
+from nonebot_plugin_ai_group.Model import OpenAI
 
 
 def test_openai_base_url_has_no_trailing_slash() -> None:

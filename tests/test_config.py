@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from nonebot_plugin_summary_group.Config import Config
+from nonebot_plugin_ai_group.Config import Config
 
 
 ACCOUNT = {

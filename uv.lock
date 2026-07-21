@@ -528,6 +528,45 @@ wheels = [
 ]
 
 [[package]]
+name = "nonebot-plugin-ai-group"
+version = "1.0.1"
+source = { editable = "." }
+dependencies = [
+    { name = "httpx" },
+    { name = "nonebot-adapter-onebot" },
+    { name = "nonebot-plugin-alconna" },
+    { name = "nonebot-plugin-apscheduler" },
+    { name = "nonebot-plugin-htmlrender" },
+    { name = "nonebot-plugin-localstore" },
+    { name = "nonebot2" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "httpx", specifier = ">=0.27" },
+    { name = "nonebot-adapter-onebot", specifier = ">=2.3" },
+    { name = "nonebot-plugin-alconna", specifier = ">=0.53" },
+    { name = "nonebot-plugin-apscheduler", specifier = ">=0.5" },
+    { name = "nonebot-plugin-htmlrender", specifier = ">=0.6" },
+    { name = "nonebot-plugin-localstore", specifier = ">=0.7" },
+    { name = "nonebot2", specifier = ">=2.3" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=8.3" },
+    { name = "pytest-asyncio", specifier = ">=0.24" },
+    { name = "ruff", specifier = ">=0.9" },
+]
+
+[[package]]
 name = "nonebot-plugin-alconna"
 version = "0.57.6"
 source = { registry = "https://pypi.org/simple" }
@@ -595,45 +634,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/63/22/67ec1e604c0385729bf2d71db406c032de9015363588785617113dfb76ac/nonebot_plugin_localstore-0.7.4.tar.gz", hash = "sha256:85ddc13814bfcd484ab311306823651390020bf44f4fb4733b343a58e72723ce", size = 5535, upload-time = "2025-03-01T12:54:04.077Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/7b/c8/0fcb2c6d994579e53342cbf11bf9326ddfab010d1a8063e1fc0cc19c13bf/nonebot_plugin_localstore-0.7.4-py3-none-any.whl", hash = "sha256:3b08030878eadcdd8b9ce3d079da0dc2d0e41dc91f0b2d8cf7fa862a27de9090", size = 6963, upload-time = "2025-03-01T12:54:02.137Z" },
-]
-
-[[package]]
-name = "nonebot-plugin-summary-group"
-version = "1.0.1"
-source = { editable = "." }
-dependencies = [
-    { name = "httpx" },
-    { name = "nonebot-adapter-onebot" },
-    { name = "nonebot-plugin-alconna" },
-    { name = "nonebot-plugin-apscheduler" },
-    { name = "nonebot-plugin-htmlrender" },
-    { name = "nonebot-plugin-localstore" },
-    { name = "nonebot2" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-    { name = "ruff" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "httpx", specifier = ">=0.27" },
-    { name = "nonebot-adapter-onebot", specifier = ">=2.3" },
-    { name = "nonebot-plugin-alconna", specifier = ">=0.53" },
-    { name = "nonebot-plugin-apscheduler", specifier = ">=0.5" },
-    { name = "nonebot-plugin-htmlrender", specifier = ">=0.6" },
-    { name = "nonebot-plugin-localstore", specifier = ">=0.7" },
-    { name = "nonebot2", specifier = ">=2.3" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "pytest", specifier = ">=8.3" },
-    { name = "pytest-asyncio", specifier = ">=0.24" },
-    { name = "ruff", specifier = ">=0.9" },
 ]
 
 [[package]]

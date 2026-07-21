@@ -3,7 +3,7 @@ import asyncio
 import pytest
 import pytest_asyncio
 
-from nonebot_plugin_summary_group.utils import queue_request
+from nonebot_plugin_ai_group.utils import queue_request
 
 
 @pytest_asyncio.fixture

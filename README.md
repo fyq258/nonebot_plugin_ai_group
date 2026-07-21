@@ -5,7 +5,7 @@
 </div>
 <div align="center">
 
-# nonebot_plugin_summary_group
+# nonebot_plugin_ai_group
 
 </div>
 
@@ -18,13 +18,13 @@
 使用nb-cli安装插件
 
 ```shell
-nb plugin install nonebot_plugin_summary_group
+nb plugin install nonebot_plugin_ai_group
 ```
 
 使用pip安装插件
 
 ```shell
-pip install nonebot_plugin_summary_group
+pip install nonebot_plugin_ai_group
 ```
 
 ## ⚙️ 配置

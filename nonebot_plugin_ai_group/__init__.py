@@ -33,7 +33,7 @@ __plugin_meta__ = PluginMetadata(
     description="使用 AI 分析群聊记录，生成讨论内容的总结。",
     usage="1.总结 [消息数量] [内容] ：生成该群最近消息数量的内容总结或指定内容总结\n2.总结定时 [时间] [最少消息数量] ：定时生成消息数量的内容总结\n3.总结定时取消 ：取消本群的定时内容总结",
     type="application",
-    homepage="https://github.com/StillMisty/nonebot_plugin_summary_group",
+    homepage="https://github.com/StillMisty/nonebot_plugin_ai_group",
     config=Config,
     supported_adapters={"~onebot.v11"},
 )
