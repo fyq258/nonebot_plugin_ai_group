@@ -53,8 +53,12 @@ __plugin_meta__ = PluginMetadata(
     supported_adapters={"~onebot.v11"},
 )
 
+driver = get_driver()
+command_prefixes = [*sorted(set(driver.config.command_start) - {""}), ""]
+
 summary = on_alconna(
     Alconna(
+        command_prefixes,
         "总结",
         Args["target", int],
         Args["parameter", AllParam, None],
@@ -74,6 +78,7 @@ summary = on_alconna(
 )
 summary_set = on_alconna(
     Alconna(
+        command_prefixes,
         "总结定时",
         Args[
             "time",
@@ -94,6 +99,7 @@ summary_set = on_alconna(
 
 summary_remove = on_alconna(
     Alconna(
+        command_prefixes,
         "总结定时取消",
         meta=CommandMeta(
             description="取消本群的定时内容总结",
@@ -105,8 +111,6 @@ summary_remove = on_alconna(
     block=True,
     permission=SUPERUSER,
 )
-
-driver = get_driver()
 
 
 @driver.on_startup
