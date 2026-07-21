@@ -33,6 +33,26 @@ def make_message(text: str, created_at: datetime) -> dict:
     }
 
 
+@pytest.mark.parametrize(
+    ("value", "seconds"),
+    [
+        ("1m", 60),
+        ("1h", 3600),
+        ("1.5h", 5400),
+        ("1d", 86400),
+        ("2H", 7200),
+    ],
+)
+def test_parse_duration(value: str, seconds: int) -> None:
+    assert utils.parse_duration(value).total_seconds() == seconds
+
+
+@pytest.mark.parametrize("value", ["", "0m", "1", "1w", "-1h", "1.5.2h"])
+def test_parse_duration_rejects_invalid_values(value: str) -> None:
+    with pytest.raises(ValueError):
+        utils.parse_duration(value)
+
+
 def test_schedule_summary_can_add_update_and_remove(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -127,3 +147,73 @@ async def test_scheduler_keeps_last_real_message(
         {"tester": "last"},
     ]
     send.assert_awaited_once_with(bot, 123, "summary")
+
+
+@pytest.mark.asyncio
+async def test_duration_history_filters_and_sorts_messages() -> None:
+    now = datetime.now()
+
+    class FakeBot:
+        async def get_group_msg_history(self, **kwargs):
+            return {
+                "messages": [
+                    make_message("recent 2", now - timedelta(minutes=2)),
+                    make_message("old", now - timedelta(hours=2)),
+                    make_message("recent 1", now - timedelta(minutes=5)),
+                ]
+            }
+
+    messages, truncated = await utils.get_group_msg_history_by_duration(
+        FakeBot(), group_id=123, duration=timedelta(hours=1)
+    )
+
+    assert messages == [
+        {"tester": "recent 1"},
+        {"tester": "recent 2"},
+    ]
+    assert truncated is False
+
+
+@pytest.mark.asyncio
+async def test_duration_history_reports_message_limit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    now = datetime.now()
+
+    class FakeBot:
+        async def get_group_msg_history(self, **kwargs):
+            assert kwargs["count"] == 3
+            return {
+                "messages": [
+                    make_message(str(index), now - timedelta(minutes=index))
+                    for index in range(3)
+                ]
+            }
+
+    monkeypatch.setattr(utils.config, "ai_group_max_messages", 3)
+
+    messages, truncated = await utils.get_group_msg_history_by_duration(
+        FakeBot(), group_id=123, duration=timedelta(hours=1)
+    )
+
+    assert len(messages) == 3
+    assert truncated is True
+
+
+@pytest.mark.asyncio
+async def test_private_summary_is_sent_to_requester() -> None:
+    bot = AsyncMock()
+
+    await utils.send_private_summary(bot, 456, " summary ")
+
+    bot.send_private_msg.assert_awaited_once_with(user_id=456, message="summary")
+
+
+@pytest.mark.asyncio
+async def test_group_access_requires_requester_membership() -> None:
+    allowed_bot = AsyncMock()
+    denied_bot = AsyncMock()
+    denied_bot.get_group_member_info.side_effect = RuntimeError("not a member")
+
+    assert await utils.can_user_access_group(allowed_bot, 123, 456) is True
+    assert await utils.can_user_access_group(denied_bot, 123, 456) is False

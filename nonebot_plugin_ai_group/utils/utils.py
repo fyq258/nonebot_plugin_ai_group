@@ -1,11 +1,19 @@
 import asyncio
 from collections import defaultdict
 from datetime import datetime, timedelta
+from decimal import Decimal
 from math import ceil
 from pathlib import Path
+import re
 
 from nonebot import get_bot, require
-from nonebot.adapters.onebot.v11 import Bot, GroupMessageEvent, Message, MessageSegment
+from nonebot.adapters.onebot.v11 import (
+    Bot,
+    GroupMessageEvent,
+    Message,
+    MessageSegment,
+    PrivateMessageEvent,
+)
 
 from ..Config import config
 from ..Store import Data, Store
@@ -31,10 +39,37 @@ if config.ai_group_render_image:
 
 
 cool_down = defaultdict(lambda: datetime.now())
+duration_pattern = re.compile(r"^(\d+(?:\.\d+)?)([mhd])$", re.IGNORECASE)
+duration_seconds = {
+    "m": Decimal(60),
+    "h": Decimal(60 * 60),
+    "d": Decimal(24 * 60 * 60),
+}
 
 
 def validate_group_event(event) -> bool:
     return isinstance(event, GroupMessageEvent)
+
+
+def validate_summary_event(event) -> bool:
+    return isinstance(event, (GroupMessageEvent, PrivateMessageEvent))
+
+
+def parse_duration(value: str) -> timedelta:
+    """解析 1m、1h、1.5h、1d 格式的时间段。"""
+    match = duration_pattern.fullmatch(value.strip())
+    if match is None:
+        raise ValueError("时间格式无效")
+
+    amount = Decimal(match.group(1))
+    if amount <= 0:
+        raise ValueError("时间必须大于 0")
+
+    seconds = amount * duration_seconds[match.group(2).lower()]
+    try:
+        return timedelta(seconds=float(seconds))
+    except OverflowError as error:
+        raise ValueError("时间范围过大") from error
 
 
 def validate_message_count(num: int) -> bool:
@@ -129,8 +164,39 @@ async def get_group_msg_history(
     messages = (await bot.get_group_msg_history(group_id=group_id, count=count))[
         "messages"
     ]
+    messages.sort(key=lambda message: message["time"])
 
     return await process_message(messages, bot, group_id, remove_last_message=True)
+
+
+async def can_user_access_group(bot: Bot, group_id: int, user_id: int) -> bool:
+    """确认私聊请求者是目标群成员，并且机器人能够访问该群。"""
+    try:
+        await bot.get_group_member_info(group_id=group_id, user_id=user_id)
+    except Exception:
+        return False
+    return True
+
+
+async def get_group_msg_history_by_duration(
+    bot: Bot,
+    group_id: int,
+    duration: timedelta,
+) -> tuple[list[dict[str, str]], bool]:
+    """获取指定时间范围的群消息，并返回是否可能因数量上限而截断。"""
+    limit = config.ai_group_max_messages
+    messages = (await bot.get_group_msg_history(group_id=group_id, count=limit))[
+        "messages"
+    ]
+    messages.sort(key=lambda message: message["time"])
+
+    deadline = (datetime.now() - duration).timestamp()
+    truncated = (
+        len(messages) >= limit and bool(messages) and messages[0]["time"] >= deadline
+    )
+    messages = [message for message in messages if message["time"] >= deadline]
+
+    return await process_message(messages, bot, group_id), truncated
 
 
 async def messages_summary(
@@ -156,12 +222,23 @@ async def send_summary(bot: Bot, group_id: int, summary: str):
         await bot.send_group_msg(group_id=group_id, message=summary.strip())
 
 
+async def send_private_summary(bot: Bot, user_id: int, summary: str) -> None:
+    """向私聊请求者发送总结。"""
+    if config.ai_group_render_image:
+        img = await generate_image(summary)
+        message = Message(MessageSegment.image(img))
+    else:
+        message = summary.strip()
+    await bot.send_private_msg(user_id=user_id, message=message)
+
+
 async def scheduler_send_summary(group_id: int, minimum_messages: int):
     """最近 24 小时消息数达到阈值时发送定时总结。"""
     bot = get_bot()
     messages = (
         await bot.get_group_msg_history(group_id=group_id, count=minimum_messages)
     )["messages"]
+    messages.sort(key=lambda message: message["time"])
 
     deadline = (datetime.now() - timedelta(hours=24)).timestamp()
     messages = [message for message in messages if message["time"] > deadline]
