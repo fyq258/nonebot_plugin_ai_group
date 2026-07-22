@@ -14,9 +14,9 @@ from .Store import Data, Store
 from .utils.utils import (
     can_user_access_group,
     get_group_msg_history,
-    get_group_msg_history_by_duration,
+    get_group_msg_history_by_time_range,
     messages_summary,
-    parse_duration,
+    parse_summary_period,
     remove_summary_schedule,
     schedule_summary,
     send_private_summary,
@@ -43,7 +43,7 @@ __plugin_meta__ = PluginMetadata(
     description="使用 AI 分析群聊记录，支持群内按条数和私聊按时间段总结。",
     usage=(
         "1.群聊：/总结 [消息数量] [内容]\n"
-        "2.私聊：/总结 [群号] [时间段]，例如：/总结 855634423 10m\n"
+        "2.私聊：/总结 [群号] [时间段]，例如：/总结 855634423 10m 或 9:52 10:21\n"
         "3./总结定时 [时间] [最少消息数量]\n"
         "4./总结定时取消"
     ),
@@ -83,7 +83,7 @@ summary = on_alconna(
             usage=(
                 "群聊：/总结 [消息数量] [内容]\n"
                 "私聊：/总结 [群号] [时间段]\n"
-                "时间段支持 1m、1h、1.5h、1d"
+                "时间段支持 1m、1h、1.5h、1d、9:52、9:52 10:21"
             ),
         ),
     ),
@@ -146,7 +146,7 @@ def extract_plain_text(value: object | None) -> str:
             parts.append(str(segment.text))
         else:
             parts.append(str(segment))
-    return "".join(parts).strip()
+    return " ".join(part for part in parts if part).strip()
 
 
 @summary.handle()
@@ -159,11 +159,14 @@ async def _(
     target_get = target.result
 
     if isinstance(event, PrivateMessageEvent):
-        duration_text = extract_plain_text(parameter.result)
+        period_text = extract_plain_text(parameter.result)
         try:
-            duration = parse_duration(duration_text)
+            period = parse_summary_period(period_text)
         except ValueError:
-            await summary.finish("时间格式不正确，请使用 1m、1h、1.5h、1d 这样的格式。")
+            await summary.finish(
+                "时间格式不正确，请使用 1m、1h、1.5h、1d、9:52 或 "
+                "9:52 10:21 这样的格式。"
+            )
 
         if not await can_user_access_group(bot, target_get, event.user_id):
             await summary.finish("无法读取该群。请确认你和机器人都在目标群中。")
@@ -172,14 +175,22 @@ async def _(
             await summary.finish(f"请等待 {cool_time} 秒后再次使用。")
 
         try:
-            messages, truncated = await get_group_msg_history_by_duration(
-                bot, target_get, duration
+            messages, truncated = await get_group_msg_history_by_time_range(
+                bot,
+                target_get,
+                period.start,
+                period.end,
             )
         except Exception:
             await summary.finish("获取群聊记录失败，请确认群号和机器人权限。")
 
         if not messages:
-            await summary.finish("该时间段内没有可总结的文本消息。")
+            notice = (
+                "最近消息已达到读取上限，目标时间段可能超出可读取范围。"
+                if truncated
+                else "该时间段内没有可总结的文本消息。"
+            )
+            await summary.finish(notice)
 
         summary_text = await messages_summary(messages)
         limit_notice = (
@@ -189,8 +200,7 @@ async def _(
             else ""
         )
         result = (
-            f"## 群 {target_get} 最近 {duration_text.lower()} 的总结\n\n"
-            f"{limit_notice}{summary_text}"
+            f"## 群 {target_get} {period.label} 的总结\n\n{limit_notice}{summary_text}"
         )
         await send_private_summary(bot, event.user_id, result)
         return

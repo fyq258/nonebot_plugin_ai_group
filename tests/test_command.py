@@ -33,6 +33,14 @@ def test_private_command_without_duration_reaches_validation() -> None:
     assert result.query("parameter") is None
 
 
+def test_private_clock_range_command_parsing() -> None:
+    result = summary.command().parse("/总结 855634423 9:52 10:21")
+
+    assert result.matched
+    assert result.query("target") == 855634423
+    assert extract_plain_text(result.query("parameter")) == "9:52 10:21"
+
+
 @pytest.mark.parametrize(
     ("matcher", "command"),
     [

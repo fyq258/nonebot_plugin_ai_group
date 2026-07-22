@@ -1,5 +1,6 @@
 import asyncio
 from collections import defaultdict
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from decimal import Decimal
 from math import ceil
@@ -46,6 +47,14 @@ duration_seconds = {
     "h": Decimal(60 * 60),
     "d": Decimal(24 * 60 * 60),
 }
+clock_pattern = re.compile(r"^([01]?\d|2[0-3]):([0-5]\d)$")
+
+
+@dataclass(frozen=True)
+class SummaryPeriod:
+    start: datetime
+    end: datetime
+    label: str
 
 
 def validate_group_event(event) -> bool:
@@ -71,6 +80,53 @@ def parse_duration(value: str) -> timedelta:
         return timedelta(seconds=float(seconds))
     except OverflowError as error:
         raise ValueError("时间范围过大") from error
+
+
+def parse_summary_period(value: str, now: datetime | None = None) -> SummaryPeriod:
+    """解析相对时长或当天的 HH:MM 时间区间。"""
+    current = now or datetime.now()
+    normalized = value.strip()
+
+    try:
+        duration = parse_duration(normalized)
+    except ValueError:
+        duration = None
+
+    if duration is not None:
+        try:
+            start = current - duration
+        except OverflowError as error:
+            raise ValueError("时间范围过大") from error
+        return SummaryPeriod(start, current, f"最近 {normalized.lower()}")
+
+    values = normalized.split()
+    if len(values) not in (1, 2):
+        raise ValueError("时间格式无效")
+
+    def parse_clock(clock: str) -> datetime:
+        match = clock_pattern.fullmatch(clock)
+        if match is None:
+            raise ValueError("时间格式无效")
+        return current.replace(
+            hour=int(match.group(1)),
+            minute=int(match.group(2)),
+            second=0,
+            microsecond=0,
+        )
+
+    start = parse_clock(values[0])
+    end = current if len(values) == 1 else parse_clock(values[1])
+    if end > current:
+        raise ValueError("结束时间不能晚于当前时间")
+    if start >= end:
+        raise ValueError("开始时间必须早于结束时间")
+
+    label = (
+        f"今日 {start:%H:%M} 至现在"
+        if len(values) == 1
+        else f"今日 {start:%H:%M}-{end:%H:%M}"
+    )
+    return SummaryPeriod(start, end, label)
 
 
 def validate_message_count(num: int) -> bool:
@@ -185,17 +241,40 @@ async def get_group_msg_history_by_duration(
     duration: timedelta,
 ) -> tuple[list[dict[str, str]], bool]:
     """获取指定时间范围的群消息，并返回是否可能因数量上限而截断。"""
+    now = datetime.now()
+    return await get_group_msg_history_by_time_range(
+        bot,
+        group_id,
+        now - duration,
+        now,
+    )
+
+
+async def get_group_msg_history_by_time_range(
+    bot: Bot,
+    group_id: int,
+    start: datetime,
+    end: datetime,
+) -> tuple[list[dict[str, str]], bool]:
+    """获取指定起止时间内的群消息，并返回是否可能因数量上限而截断。"""
     limit = config.ai_group_max_messages
     messages = (await bot.get_group_msg_history(group_id=group_id, count=limit))[
         "messages"
     ]
     messages.sort(key=lambda message: message["time"])
 
-    deadline = (datetime.now() - duration).timestamp()
+    start_timestamp = start.timestamp()
+    end_timestamp = end.timestamp()
     truncated = (
-        len(messages) >= limit and bool(messages) and messages[0]["time"] >= deadline
+        len(messages) >= limit
+        and bool(messages)
+        and messages[0]["time"] >= start_timestamp
     )
-    messages = [message for message in messages if message["time"] >= deadline]
+    messages = [
+        message
+        for message in messages
+        if start_timestamp <= message["time"] <= end_timestamp
+    ]
 
     return await process_message(messages, bot, group_id), truncated
 

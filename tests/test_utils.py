@@ -33,6 +33,33 @@ def make_message(text: str, created_at: datetime) -> dict:
     }
 
 
+def test_parse_summary_period_supports_duration_and_clock_ranges() -> None:
+    now = datetime(2026, 7, 22, 12, 0, 30)
+
+    duration = utils.parse_summary_period("1.5h", now)
+    since_clock = utils.parse_summary_period("9:52", now)
+    clock_range = utils.parse_summary_period("9:52 10:21", now)
+
+    assert duration.start == datetime(2026, 7, 22, 10, 30, 30)
+    assert duration.end == now
+    assert duration.label == "最近 1.5h"
+    assert since_clock.start == datetime(2026, 7, 22, 9, 52)
+    assert since_clock.end == now
+    assert since_clock.label == "今日 09:52 至现在"
+    assert clock_range.start == datetime(2026, 7, 22, 9, 52)
+    assert clock_range.end == datetime(2026, 7, 22, 10, 21)
+    assert clock_range.label == "今日 09:52-10:21"
+
+
+@pytest.mark.parametrize(
+    "value",
+    ["24:00", "9:60", "12:01", "10:21 9:52", "9:52 12:01"],
+)
+def test_parse_summary_period_rejects_invalid_clock_ranges(value: str) -> None:
+    with pytest.raises(ValueError):
+        utils.parse_summary_period(value, datetime(2026, 7, 22, 12, 0, 30))
+
+
 @pytest.mark.parametrize(
     ("value", "seconds"),
     [
@@ -198,6 +225,37 @@ async def test_duration_history_reports_message_limit(
 
     assert len(messages) == 3
     assert truncated is True
+
+
+@pytest.mark.asyncio
+async def test_time_range_history_includes_boundaries() -> None:
+    day = datetime(2026, 7, 22)
+
+    class FakeBot:
+        async def get_group_msg_history(self, **kwargs):
+            return {
+                "messages": [
+                    make_message("after", day.replace(hour=10, minute=22)),
+                    make_message("start", day.replace(hour=9, minute=52)),
+                    make_message("before", day.replace(hour=9, minute=51)),
+                    make_message("end", day.replace(hour=10, minute=21)),
+                    make_message("middle", day.replace(hour=10)),
+                ]
+            }
+
+    messages, truncated = await utils.get_group_msg_history_by_time_range(
+        FakeBot(),
+        group_id=123,
+        start=day.replace(hour=9, minute=52),
+        end=day.replace(hour=10, minute=21),
+    )
+
+    assert messages == [
+        {"tester": "start"},
+        {"tester": "middle"},
+        {"tester": "end"},
+    ]
+    assert truncated is False
 
 
 @pytest.mark.asyncio
